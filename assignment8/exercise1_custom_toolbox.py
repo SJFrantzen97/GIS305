@@ -2,65 +2,62 @@ import arcpy
 
 
 def intersect(layer_list, input_lyr_name):
-
-    # Run a intersect analysis between the two buffer layers (needs to be a list of layers to intersect)
+    """Runs an intersect analysis between the given buffer layers."""
     arcpy.Intersect_analysis(layer_list, input_lyr_name)
 
 
-
 def buffer_layer(input_gdb, input_layer, dist):
-    # Run a buffer analysis on the input_layer with a user specified distance
+    """Runs a buffer analysis on the input_layer with a user-specified distance."""
 
-    # Distance units are always miles
-    units = " miles"
-    dist = dist + units
-    # Output layer will always be named input layer + "_buf
-    output_layer = r"C:\Users\David Neufeld\Documents\ArcGIS\GIS305\Projects\ModelBuilder\ModelBuilder.gdb\\" + input_layer + "_buf"
-    # Always use buffer parameters FULL, ROUND, ALL
-    buf_layer = input_gdb + input_layer
-    arcpy.Buffer_analysis(buf_layer, output_layer,
-                          dist, "FULL", "ROUND", "ALL")
+    # Ensure distance is formatted correctly
+    dist = f"{dist} miles"
+
+    # Output layer will be named input layer + "_buf"
+    output_layer = fr"{input_gdb}{input_layer}_buf"
+
+    # Buffer operation with parameters FULL, ROUND, ALL
+    buf_layer = fr"{input_gdb}{input_layer}"
+    arcpy.Buffer_analysis(buf_layer, output_layer, dist, "FULL", "ROUND", "ALL")
+
     return output_layer
 
 
 def main():
-    # Define your workspace and point it at the modelbuilder.gdb
-    arcpy.env.workspace = r"C:\Users\David Neufeld\Documents\ArcGIS\GIS305\Projects\ModelBuilder\ModelBuilder.gdb\\"
+    """Main function to execute buffer and intersect operations."""
+
+    # Define workspace and enable overwrite
+    arcpy.env.workspace = r"C:\Users\Spencer\Desktop\FRCCSpring2025\ProgrammingGIS\Assignments\Assignment1b\Assignment1b.gdb"
     arcpy.env.overwriteOutput = True
 
+    # Input geodatabase
+    input_gdb = r"C:\Users\Spencer\Desktop\FRCCSpring2025\ProgrammingGIS\Assignments\Assignment1b\Assignment1b.gdb\USA\\"
+
+    # Get distances from parameters
+    dist_cities = arcpy.GetParameterAsText(0)
+    dist_rivers = arcpy.GetParameterAsText(1)
+    intersect_lyr_name = arcpy.GetParameterAsText(2)  # Get intersect output layer name
+
     # Buffer cities
-    input_gdb = r"C:\Users\David Neufeld\Documents\ArcGIS\GIS305\Data\Admin\AdminData.gdb\USA\\"
-
-    # Change me this next line below to use GetParamters!!
-    dist = input("What buffer distance do you want to use?")
-
-    buf_cities = buffer_layer(input_gdb, "cities", dist)
-
-    # Change me this next line below to use GetParamters!!
-    print("Buffer layer " + buf_cities + " created.")
+    buf_cities = buffer_layer(input_gdb, "cities", dist_cities)
+    print(f"Buffer layer {buf_cities} created.")
 
     # Buffer rivers
-    # Change me this next line below to use GetParamters!!
-    dist = input("What buffer distance do you want to use?")
-    buf_rivers = buffer_layer(input_gdb, "us_rivers", dist)
-    print("Buffer layer " + buf_rivers + " created.")
+    buf_rivers = buffer_layer(input_gdb, "us_rivers", dist_rivers)
+    print(f"Buffer layer {buf_rivers} created.")
 
-    # Define lyr_list variable
-    # with names of input layers to intersect
-    # Ask the user to define an output layer name
-    # Change me this next line below to use GetParamters!!
-    intersect_lyr_name = input("What is the name for your output layer resulting from the intersect analysis? ")
+    # Perform intersection
     lyr_list = [buf_rivers, buf_cities]
     intersect(lyr_list, intersect_lyr_name)
-    print(f"New intersect layer generated called: {intersect_lyr_name}")
+    print(f"New intersect layer generated: {intersect_lyr_name}")
 
-    # Get the project
+    # Open ArcGIS project and add the new layer
     aprx = arcpy.mp.ArcGISProject(
-        r"c:\Users\David Neufeld\Documents\ArcGIS\GIS305\Projects\ModelBuilder\ModelBuilder.ap"
-        r"rx")
+        r"C:\Users\Spencer\Desktop\FRCCSpring2025\ProgrammingGIS\Assignments\Assignment1b\Assignment1b.aprx"
+    )
     map_doc = aprx.listMaps()[0]
-    map_doc.addDataFromPath(rf"C:\Users\David Neufeld\Documents\ArcGIS\GIS305\Projects\ModelBuilder\ModelBuilder.gdb\{intersect_lyr_name}")
+    map_doc.addDataFromPath(fr"{arcpy.env.workspace}\{intersect_lyr_name}")
 
+    # Save the project
     aprx.save()
 
 
