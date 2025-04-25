@@ -1,6 +1,7 @@
 import requests
-from SpatialEtl import SpatialEtl
-
+from etl.SpatialEtl import SpatialEtl
+import csv
+import arcpy
 
 class GSheetsEtl(SpatialEtl):
 
@@ -21,8 +22,8 @@ class GSheetsEtl(SpatialEtl):
     def transform(self):
         print("Adding City, State and Geocoding addresses...")
 
-        input_file = r"C:\Users\Spencer\Downloads\addresses.csv"
-        output_file = r"C:\Users\Spencer\Downloads\new_addresses.csv"
+        input_file = f"{self.config_dict.get('proj_dir')}addresses.csv"
+        output_file = f"{self.config_dict.get('proj_dir')}new_addresses.csv"
 
         with open(output_file, "w", newline="", encoding="utf-8") as transformed_file:
             transformed_file.write("X,Y,Type\n")
@@ -56,23 +57,19 @@ class GSheetsEtl(SpatialEtl):
     def load(self):
         print("Loading data into GIS...")
 
-        # Set environment settings
-        arcpy.env.workspace = r"C:\Users\Spencer\Desktop\FRCCSpring2025\ProgrammingGIS\Labs\Lab1\WestNileOutbreak\WestNileOutbreak.gdb"
-        arcpy.env.overwriteOutput = True
-
         # Set local variables
-        in_table = r"C:\Users\Spencer\Downloads\new_addresses.csv"
+        in_table = f"{self.config_dict.get('proj_dir')}new_addresses.csv"
         out_feature_class = "avoid_points"
         x_coords = "X"
         y_coords = "Y"
 
         # Make the XY event layer
-            arcpy.management.XYTableToPoints(in_table, out_feature_class, x_coords, y_coords)
+        arcpy.management.XYTableToPoint(in_table, out_feature_class, x_coords, y_coords)
 
-            # Print the total rows
-            print(arcpy.GetCount_management(out_feature_class))
+        # Print the total rows
+        print(arcpy.GetCount_management(out_feature_class))
 
     def process(self):
-        self().extract()
-        self().transform()
-        self().load()
+        self.extract()
+        self.transform()
+        self.load()

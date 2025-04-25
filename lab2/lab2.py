@@ -4,18 +4,16 @@ import arcpy.mp  # Required for adding data to ArcGIS Pro
 from etl.GSheetsEtl import GSheetsEtl
 
 def setup():
+    arcpy.env.workspace = r"C:\Users\Spencer\Desktop\FRCCSpring2025\ProgrammingGIS\Labs\Lab1\WestNileOutbreak\WestNileOutbreak.gdb"
+    arcpy.env.overwriteOutput = True
     with open('config/wnvoutbreak.yaml') as f:
         config_dict = yaml.load(f, Loader=yaml.FullLoader)
     return config_dict
 
 def etl():
     print("Start etl process...")
-    etl_instance = GSheetsEtl("https://foo_bar.com", "C/Users", "GSheets", "C:/Users/my.gdb")
+    etl_instance = GSheetsEtl(config_dict)
     etl_instance.process()
-
-def setup():
-    arcpy.env.workspace = r"C:\Users\Spencer\Desktop\FRCCSpring2025\ProgrammingGIS\Labs\Lab1\WestNileOutbreak\WestNileOutbreak.gdb"
-    arcpy.env.overwriteOutput = True
 
 def buffer(layer_name, buff_dist):
     output_buffer_layer_name = f"buf_{layer_name}"
@@ -106,7 +104,10 @@ def add_layer_to_map(layer_name):
 
 # Run the script
 if __name__ == '__main__':
-    setup()
+    global config_dict
+    config_dict = setup()
+    print(config_dict)
+    etl()
 
     buffer_layer_list = ["Mosquito_Larval_Sites", "Wetlands", "Lakes_and_Reservoirs", "OSMP_Properties"]
     for layer in buffer_layer_list:
