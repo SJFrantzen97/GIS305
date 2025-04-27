@@ -5,6 +5,7 @@ import logging
 from etl.GSheetsEtl import GSheetsEtl
 
 def setup():
+    arcpy.env.parallelProcessingFactor = "100%"
     logging.debug("Entering setup()")
     arcpy.env.workspace = r"C:\Users\Spencer\Desktop\FRCCSpring2025\ProgrammingGIS\Labs\Lab1\WestNileOutbreak\WestNileOutbreak.gdb"
     arcpy.env.overwriteOutput = True
