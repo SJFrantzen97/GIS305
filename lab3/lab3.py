@@ -4,6 +4,7 @@ import arcpy.mp  # Required for adding data to ArcGIS Pro
 import logging
 from etl.GSheetsEtl import GSheetsEtl
 
+
 def setup():
     arcpy.env.parallelProcessingFactor = "100%"
     logging.debug("Entering setup()")
@@ -12,7 +13,6 @@ def setup():
     with open('config/wnvoutbreak.yaml') as f:
         config_dict = yaml.load(f, Loader=yaml.FullLoader)
 
-    # Set up logging config here
     logging.basicConfig(
         filename=f"{config_dict.get('proj_dir')}wnv.log",
         filemode="w",
@@ -44,8 +44,10 @@ def intersect():
     output_layer = input("Enter a name for the intersect output layer: ").strip()
     output_layer = output_layer.replace(" ", "_")[:50]
 
-    buffer_layers = ["buf_Mosquito_Larval_Sites", "buf_Wetlands", "buf_Lakes_and_Reservoirs", "buf_OSMP_Properties"]
+    buffer_layers = ["buf_Mosquito_Larval_Sites", "buf_Wetlands"]
+    buffer_layers2 = ["buf_Lakes_and_Reservoirs", "buf_OSMP_Properties"]
     logging.info(f"Performing intersect on: {buffer_layers}")
+    logging.info(f"Performing intersect on: {buffer_layers2}")
 
     try:
         existing_layers = [layer for layer in buffer_layers if arcpy.Exists(layer)]
@@ -68,6 +70,31 @@ def intersect():
         return None
     finally:
         logging.debug("Exiting intersect()")
+
+
+def erase_analysis(input_layer, erase_layer, output_layer):
+    logging.debug(f"Entering erase_analysis() with input_layer={input_layer}, erase_layer={erase_layer}, output_layer={output_layer}")
+
+    try:
+        if not arcpy.Exists(input_layer) or not arcpy.Exists(erase_layer):
+            logging.error("Input or erase layer does not exist. Cannot perform erase.")
+            return None
+
+        arcpy.analysis.Erase(in_features=input_layer, erase_features=erase_layer, out_feature_class=output_layer)
+        logging.info(f"Erase operation successful! Output saved as {output_layer}")
+
+        if arcpy.Exists(output_layer):
+            logging.info(f"Verified: {output_layer} exists.")
+            return output_layer
+        else:
+            logging.error(f"{output_layer} was not created.")
+            return None
+
+    except Exception as e:
+        logging.error(f"Error during erase analysis: {e}")
+        return None
+    finally:
+        logging.debug("Exiting erase_analysis()")
 
 
 def spatial_join(address_layer, intersect_layer):
@@ -135,20 +162,15 @@ def add_layer_to_map(layer_name):
 def exportMap():
     logging.debug("Entering exportMap()")
     try:
-        # Get project object and layout
         aprx = arcpy.mp.ArcGISProject(f"{config_dict.get('proj_dir')}WestNileOutbreak.aprx")
         lyt = aprx.listLayouts()[0]
 
-        # Ask user for subtitle
         subtitle = input("Enter the subtitle for the map: ").strip()
 
-        # Loop through elements and add subtitle to title element
         for el in lyt.listElements():
-            print(el.name)
             if "Title" in el.name:
                 el.text = el.text + f" {subtitle}"
 
-        # Export to PDF
         pdf_path = f"{config_dict.get('proj_dir')}WestNileOutbreak_Map.pdf"
         lyt.exportToPDF(pdf_path)
         logging.info(f"Map exported successfully as {pdf_path}")
@@ -170,17 +192,25 @@ if __name__ == '__main__':
 
     buffer_layer_list = ["Mosquito_Larval_Sites", "Wetlands", "Lakes_and_Reservoirs", "OSMP_Properties"]
     for layer in buffer_layer_list:
-        buffer(layer, "0.95 miles")
+        buffer(layer, "1500 feet")
+
+    # Buffer avoid_points layer
+    buffer("avoid_points", "1500 feet")
 
     intersect_layer = intersect()
     if intersect_layer:
         add_layer_to_map(intersect_layer)
 
-    joined_layer = spatial_join("Addresses", intersect_layer)
-    if joined_layer:
-        add_layer_to_map(joined_layer)
+        # Perform erase analysis
+        erased_layer = erase_analysis(intersect_layer, "buf_avoid_points", "Erased_Intersect")
+        if erased_layer:
+            add_layer_to_map(erased_layer)
 
-    # Call the exportMap function to export the map
+            # Perform spatial join on the erased result
+            joined_layer = spatial_join("Addresses", erased_layer)
+            if joined_layer:
+                add_layer_to_map(joined_layer)
+
     exportMap()
 
     logging.debug("Exiting main script block")
